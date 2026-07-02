@@ -3,6 +3,7 @@ import Ingre from './ingredients.model.js';
 import Order from './orders.model.js';
 import User from './users.model.js';
 import School from './school.model.js';
+import Classroom from './classroom.model.js';
 import Nutrition from './nutritions.model.js';
 import Category from './category.model.js';
 
@@ -11,6 +12,7 @@ const db = {
   Order,
   User,
   School,
+  Classroom,
   Nutrition,
   Category
 };

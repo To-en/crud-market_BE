@@ -20,10 +20,10 @@ export async function listOrders(req, res) {
 
   try {
     const { count, rows } = await models.Order.findAndCountAll({
-      attributes: ['id', 'name', 'ingreId'],
+      attributes: ['id', 'name', 'status'],
       where,
       include,
-      order: [['createdDate', 'DESC']],
+      order: [['createdDate','DESC'],['id','DESC']],
       limit,
       offset: (page - 1) * limit,
     });
@@ -201,3 +201,6 @@ export async function deleteOrder(req, res) {
     res.status(500).json({ error: 'Failed to delete order' });
   }
 }
+
+// Make another one called soft delete order , which will just marked deleted at (This one will be called by admin user)
+// Real delete will be managed on db

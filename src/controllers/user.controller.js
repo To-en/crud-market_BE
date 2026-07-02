@@ -129,9 +129,9 @@ export async function userRegister(req, res) {
 
 export async function listClassrooms(_req, res) {
   try {
-    const classrooms = await models.School.findAll({
-      attributes: ['id', ['department', 'name']],
-      order: [['department', 'ASC']]
+    const classrooms = await models.Classroom.findAll({
+      attributes: ['id', ['classname', 'name']],
+      order: [['classname', 'ASC']]
     });
     res.status(200).json(classrooms);
   } catch (err) {

@@ -32,8 +32,9 @@ export async function submitOrder(req, res) {
       ingreId,
       qty,
       grandTotal,
+      status: 0,
       userId: req.user.id,
-      createDate: new Date(),
+      createdDate: new Date(),
     });
 
     res.status(201).json(order);
@@ -48,22 +49,22 @@ export async function submitOrder(req, res) {
 // PATCH /order/:id/status → teacher confirms or cancels a pending order
 // Only two valid transitions — confirmed deducts budget, cancelled leaves budget untouched
 export async function updateOrderStatus(req, res) {
-  const { status } = req.body;
-
-  if (!['confirmed', 'cancelled'].includes(status))
-    return res.status(400).json({ error: "status must be confirmed or cancelled" });
+  const status = Number(req.body.status);
 
   try {
     const order = await models.Order.findOne(scopeQueryByClassroom(req.user, Number(req.params.id)));
     if (!order) return res.status(404).json({ error: "Order not found" });
 
-    if (status === 'confirmed') {
+    // only confirmed then deduct budget
+    if (status === 1) {
       // Deduct budget from student — grandTotal calculated inside service
       await service.confirmAndDeductBudget(order);
     }
 
+    // A cancled budget will refund
+
     await order.update({ status, lastModified: new Date() });
-    res.status(200).json(order);
+    res.status(200).json(order); 
   } catch (error) {
     logger.error("order %s status→%s failed: %s", req.params.id, status, error.message);
     res.status(500).json({ error: "Failed to update order status" });

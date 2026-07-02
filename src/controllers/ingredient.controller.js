@@ -33,6 +33,17 @@ export async function listIngredients(req, res) {
   }
 }
 
+// GET /categories → distinct category names, for the market filter bar
+export async function listCategories(req, res) {
+  try {
+    const rows = await models.Category.findAll({ attributes: ['name'], order: [['name', 'ASC']] });
+    res.status(200).json(rows.map((r) => r.name));
+  } catch (error) {
+    logger.error("fetch categories failed: %s", error.message);
+    res.status(500).json({ error: "Failed to fetch categories" });
+  }
+}
+
 // GET /ingredient?category=โปรตีน           → filter by category
 // GET /ingredient?q=หมู                     → search by name (case-insensitive)
 // GET /ingredient?category=โปรตีน&q=หมู    → both combined
@@ -141,3 +152,5 @@ export async function deleteIngredient(req, res) {
     res.status(500).json({ error: error.message });
   }
 }
+
+// Make another one called softdelete which will just marked deleteAt
