@@ -10,9 +10,13 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // Builds scoped where + include based on role. Pass orderId for single-item queries.
 export function scopeQueryByClassroom(user, orderId = null) {
   const idClause = orderId ? { id: orderId } : {};
-  if (user.role === 0) return { where: { ...idClause, userId: user.id }, include: [] };
-  if (user.role === 1) return { where: idClause, include: [{ model: models.User, attributes: ['class'], where: { class: user.class }, required: true }] };
-  return { where: idClause, include: [] };  // admin: all
+  if (user.role === 0) 
+    return { where: { ...idClause, userId: user.id }, include: [] };
+  if (user.role === 1) 
+    return { where: idClause, 
+            include: [{ model: models.User, attributes: ['username','class'], where: { class: user.class }, required: true }] };
+  
+  return { where: idClause, include: [{ model: models.User, attributes: ['username', 'class'], required: false }] };
 }
 
 export async function exportOrderCSV(data) {

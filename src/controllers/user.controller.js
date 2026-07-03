@@ -2,7 +2,7 @@ import Jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import config from '../config.js';
 import models from '../models/index.js';
-import * as service from '../services/user.service.js';
+import * as service from '../services/auth.service.js';
 import { distributeBudget } from '../services/budget.service.js';
 import makeLogger from '../logger.js';
 
@@ -32,9 +32,10 @@ export async function userLogin(req, res) {
     const refreshToken = await service.signRefreshToken(dbUser.id, role);
 
     res.status(200).json(
-      { userName: username, 
-        role, 
-        accessToken, 
+      { userName: username,
+        role,
+        accessToken,
+        expires: config.jwtsecret.accessExpire,
         refreshToken });
   } catch (err) {
     logger.error("login failed for %s: %s", username, err.message);
@@ -101,7 +102,7 @@ export async function userRegister(req, res) {
     if (existingUser)
       return res.status(409).json({ error: "Username already registered" });
 
-    const classroomRecord = await models.School.findByPk(classroom);
+    const classroomRecord = await models.Classroom.findByPk(classroom);
     if (!classroomRecord)
       return res.status(400).json({ error: "Classroom not found" });
 
@@ -109,7 +110,7 @@ export async function userRegister(req, res) {
     const dbUser = await models.User.create({
       username,
       password: hashed,
-      class: classroomRecord.department,
+      class: classroomRecord.classname,
       role
     });
 

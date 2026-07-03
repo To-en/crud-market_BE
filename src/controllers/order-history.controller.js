@@ -6,6 +6,21 @@ import makeLogger from '../logger.js';
 
 const logger = makeLogger(import.meta.url);
 
+// Flatten a list/search row: lift joined User into flat owner/classroom so the
+// FE gets a stable shape regardless of role (nested User omitted). null when unscoped.
+function flattenOrderRow(row) {
+  const o = row.toJSON();
+  return {
+    id: o.id,
+    name: o.name,
+    status: o.status,
+    grandTotal: o.grandTotal,
+    createdDate: o.createdDate,
+    owner: o.user?.username ?? null,      // nested key = default belongsTo alias (model name "users" → "user")
+    classroom: o.user?.class ?? null,
+  };
+}
+
 // GET /order?page=1&limit=20 → paginated order list, scoped by role
 // scopeQueryByClassroom injects where+include so students only see own orders, teachers see their class
 export async function listOrders(req, res) {
@@ -20,14 +35,14 @@ export async function listOrders(req, res) {
 
   try {
     const { count, rows } = await models.Order.findAndCountAll({
-      attributes: ['id', 'name', 'status'],
+      attributes: ['id', 'name', 'status', 'grandTotal', 'createdDate', 'userId'], // userId (FK) required so belongsTo(User) join maps; dropped by flattenOrderRow
       where,
       include,
       order: [['createdDate','DESC'],['id','DESC']],
       limit,
       offset: (page - 1) * limit,
     });
-    res.status(200).json({ total: count, page, limit, data: rows });
+    res.status(200).json({ total: count, page, limit, data: rows.map(flattenOrderRow) });
   } catch (error) {
     logger.error("listOrders failed: %s", error.message);
     res.status(500).json({ error: "Failed to fetch orders" });
@@ -55,14 +70,14 @@ export async function searchOrder(req, res) {
 
   try {
     const { count, rows } = await models.Order.findAndCountAll({
-      attributes: ['id', 'name', 'ingreId'],
+      attributes: ['id', 'name', 'status', 'grandTotal', 'createdDate', 'userId'], // userId (FK) required so belongsTo(User) join maps; dropped by flattenOrderRow
       where,
       include,
-      order: [['createdDate', 'DESC']],
+      order: [['createdDate', 'DESC'], ['id', 'DESC']],
       limit,
       offset: (page - 1) * limit,
     });
-    res.status(200).json({ total: count, page, limit, data: rows });
+    res.status(200).json({ total: count, page, limit, data: rows.map(flattenOrderRow) });
   } catch (error) {
     logger.error("searchOrder failed: %s", error.message);
     res.status(500).json({ error: "Search failed" });

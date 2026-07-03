@@ -30,7 +30,7 @@
  *                 data:
  *                   type: array
  *                   items:
- *                     $ref: '#/components/schemas/Order'
+ *                     $ref: '#/components/schemas/OrderSummary'
  *
  * /api/order/search:
  *   get:
@@ -63,7 +63,7 @@
  *                 data:
  *                   type: array
  *                   items:
- *                     $ref: '#/components/schemas/Order'
+ *                     $ref: '#/components/schemas/OrderSummary'
  *       400:
  *         description: query param 'value' required
  *
