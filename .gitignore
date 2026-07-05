@@ -1,3 +1,26 @@
-node_modules
+# 1. Ignore specific files by exact name
+secret_token.txt
+config.json
+
+# 2. Ignore sensitive environment variable files
 .env
-logs
+.env.local
+
+# 3. Ignore all files with a specific extension (using wildcards)
+*.log
+*.tmp
+*.exe
+
+# 4. Ignore entire directories/folders (always end with a slash)
+node_modules/
+dist/
+build/
+.idea/
+.DS_Store/
+
+# 5. Make an exception to a previous rule (using an exclamation mark)
+!important_debug.log
+
+# 6. Ignore files inside a subfolder, but not the folder itself
+logs/*
+!logs/.gitkeep
