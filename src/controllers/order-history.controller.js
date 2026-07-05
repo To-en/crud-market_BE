@@ -36,7 +36,7 @@ export async function listOrders(req, res) {
   try {
     const { count, rows } = await models.Order.findAndCountAll({
       attributes: ['id', 'name', 'status', 'grandTotal', 'createdDate', 'userId'], // userId (FK) required so belongsTo(User) join maps; dropped by flattenOrderRow
-      where,
+      where: { ...where, deleteAt: null },
       include,
       order: [['createdDate','DESC'],['id','DESC']],
       limit,
@@ -62,6 +62,7 @@ export async function searchOrder(req, res) {
 
   const where = {
     ...scopeWhere,
+    deleteAt: null,
     [Op.or]: [
       { name: { [Op.iLike]: `%${value}%` } },
       ...(Number.isInteger(numericId) && numericId > 0 ? [{ id: numericId }] : []),
@@ -185,17 +186,17 @@ export async function exportOrderBill(req, res) {
     };
 
     if (format === 'csv') {
-      const csv = await service.exportOrderCSV(items);
+      const csv = await service.exportOrderCSV(billData);
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader('Content-Disposition', `attachment; filename=order-${order.id}.csv`);
       return res.send(csv);
     }
-    // if (format == 'pdf') {
-    //   const pdf = await service.exportPDF(billData);
-    //   res.setHeader('Content-Type', 'application/pdf');
-    //   res.setHeader('Content-Disposition', `attachment; filename=order-${order.id}.pdf`);
-    //   return res.send(pdf);
-    // }
+    if (format === 'pdf') {
+      const pdf = await service.exportPDF(billData);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=order-${order.id}.pdf`);
+      return res.send(pdf);
+    }
 
     res.status(400).json({ error: "Unsupported export format" });
   } catch (error) {
@@ -207,9 +208,20 @@ export async function exportOrderBill(req, res) {
 // DEL /order/:id/delete → hard delete; role scope prevents students from deleting others' orders
 export async function deleteOrder(req, res) {
   try {
-    const order = await models.Order.findOne(scopeQueryByClassroom(req.user, Number(req.params.id)));
-    if (!order) return res.status(404).json({ error: 'Order not found' });
-    await order.destroy();
+    const queryId = req.query.id === undefined ? null : Number(req.query.id);
+    if (queryId !== null && !Number.isInteger(queryId))
+      return res.status(400).json({ error: 'id must be a number' });
+
+    const scope = scopeQueryByClassroom(req.user, queryId);
+    const orders = await models.Order.findAll({
+      ...scope,
+      where: { ...scope.where, deleteAt: { [Op.not]: null } },
+    });
+
+    if (queryId !== null && orders.length === 0)
+      return res.status(404).json({ error: 'Order not found' });
+
+    await Promise.all(orders.map(order => order.destroy()));
     res.status(200).json({ message: 'Deleted' });
   } catch (error) {
     logger.error("deleteOrder %s failed: %s", req.params.id, error.message);
@@ -217,5 +229,15 @@ export async function deleteOrder(req, res) {
   }
 }
 
-// Make another one called soft delete order , which will just marked deleted at (This one will be called by admin user)
-// Real delete will be managed on db
+// PATCH /order/:id/delete → soft delete; role scope prevents students from deleting others' orders
+export async function softDeleteOrder(req, res) {
+  try {
+    const order = await models.Order.findOne(scopeQueryByClassroom(req.user, Number(req.params.id)));
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    await order.update({ deleteAt: new Date() });
+    res.status(200).json({ message: 'Deleted' });
+  } catch (error) {
+    logger.error("softDeleteOrder %s failed: %s", req.params.id, error.message);
+    res.status(500).json({ error: 'Failed to delete order' });
+  }
+}

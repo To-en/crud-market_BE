@@ -78,8 +78,7 @@ export async function userRefresh(req, res) {
       return res.status(401).json({ error: "Invalid or revoked refresh token" });
 
     const accessToken = service.signAccessToken(dbUser.id, dbUser.role);
-    // Give back to renew accessToken to user
-    res.status(200).json({ accessToken });
+    res.status(200).json({ accessToken, expires: config.jwtsecret.accessExpire });
   } catch (err) {
     logger.debug("refresh token rejected: %s", err.message);
     res.status(401).json({ error: "Refresh token expired or invalid" });

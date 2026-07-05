@@ -1,6 +1,7 @@
 import { Op, col } from 'sequelize';
 import models from '../models/index.js';
 import makeLogger from '../logger.js';
+import { getImageUrl, getSignedUrl, uploadImage, deleteImage } from '../middleware/image.middleware.js';
 
 const logger = makeLogger(import.meta.url);
 
@@ -153,4 +154,69 @@ export async function deleteIngredient(req, res) {
   }
 }
 
-// Make another one called softdelete which will just marked deleteAt
+// ---- Image endpoints (each uses exactly one image.middleware fn) ----
+//   object path = `${name}.jpg`, same convention as ingredient.service.js.
+//   Swap to a per-row stored path if you ever need non-jpg / multiple images per ingredient.
+const imagePath = (name) => `${name}.jpg`;
+
+// POST /api/ingredients/:id/image  → uploadImage
+// Needs multer upstream (multipart field "image") to populate req.file = { buffer, mimetype }.
+export async function uploadIngredientImage(req, res) {
+  if (!req.file) return res.status(400).json({ error: "image file required (multipart field 'image')" });
+  try {
+    const ingredient = await models.Ingre.findOne({ where: { id: Number(req.params.id) } });
+    if (!ingredient) return res.status(404).json({ error: "Ingredient not found" });
+
+    const publicUrl = await uploadImage(imagePath(ingredient.name), req.file.buffer, req.file.mimetype);
+    await ingredient.update({ imageUrl: publicUrl });
+    res.status(200).json({ id: ingredient.id, imageUrl: publicUrl });
+  } catch (error) {
+    logger.error("upload image %s failed: %s", req.params.id, error.message);
+    res.status(500).json({ error: "Failed to upload image" });
+  }
+}
+
+// GET /api/ingredients/:id/image  → getImageUrl
+export async function getIngredientImageUrl(req, res) {
+  try {
+    const ingredient = await models.Ingre.findOne({ where: { id: Number(req.params.id) } });
+    if (!ingredient) return res.status(404).json({ error: "Ingredient not found" });
+
+    const imageUrl = getImageUrl(imagePath(ingredient.name));
+    res.status(200).json({ id: ingredient.id, imageUrl });
+  } catch (error) {
+    logger.error("get image url %s failed: %s", req.params.id, error.message);
+    res.status(500).json({ error: "Failed to get image url" });
+  }
+}
+
+// GET /api/ingredients/:id/image/signed  → getSignedUrl (private bucket, expiring)
+export async function getIngredientSignedUrl(req, res) {
+  try {
+    const ingredient = await models.Ingre.findOne({ where: { id: Number(req.params.id) } });
+    if (!ingredient) return res.status(404).json({ error: "Ingredient not found" });
+
+    const url = await getSignedUrl(imagePath(ingredient.name));
+    res.status(200).json({ id: ingredient.id, url });
+  } catch (error) {
+    logger.error("get signed url %s failed: %s", req.params.id, error.message);
+    res.status(500).json({ error: "Failed to get signed url" });
+  }
+}
+
+// DELETE /api/ingredients/:id/image  → deleteImage
+// expect url input from query value
+export async function deleteIngredientImage(req, res) {
+  try {
+    const ingredient = await models.Ingre.findOne({ where: { id: Number(req.params.id) } });
+    if (!ingredient) return res.status(404).json({ error: "Ingredient not found" });
+
+    // Get desired image url and delete from supabase storage
+    await deleteImage(imagePath(ingredient.name));
+    await ingredient.update({ imageUrl: null });
+    res.status(200).json({ id: ingredient.id, message: "Image deleted" });
+  } catch (error) {
+    logger.error("delete image %s failed: %s", req.params.id, error.message);
+    res.status(500).json({ error: "Failed to delete image" });
+  }
+}

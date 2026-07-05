@@ -125,8 +125,8 @@
  * /api/order/{id}/export:
  *   get:
  *     tags: [Order History]
- *     summary: Export order bill as CSV
- *     description: PDF export is not yet implemented. Only csv is supported.
+ *     summary: Export order bill as CSV or PDF
+ *     description: format=csv returns an invoice-style CSV; format=pdf returns a Sarabun-rendered PDF (Thai-safe).
  *     security: [{ bearerAuth: [] }]
  *     parameters:
  *       - in: path
@@ -135,7 +135,7 @@
  *         schema: { type: integer }
  *       - in: query
  *         name: format
- *         schema: { type: string, enum: [csv], default: csv }
+ *         schema: { type: string, enum: [csv, pdf], default: csv }
  *     responses:
  *       200:
  *         description: CSV file download
@@ -148,9 +148,10 @@
  *         description: Order not found
  *
  * /api/order/{id}/delete:
- *   delete:
+ *   patch:
  *     tags: [Order History]
- *     summary: Delete order from history (teacher/admin only)
+ *     summary: Soft delete an order from history
+ *     description: Sets deleteAt on the order; frontend filtering is handled separately.
  *     security: [{ bearerAuth: [] }]
  *     parameters:
  *       - in: path
@@ -168,6 +169,34 @@
  *                 message: { type: string, example: Deleted }
  *       404:
  *         description: Order not found
+ * /api/order/{id}/delete_hard:
+ *   delete:
+ *     tags: [Order History]
+ *     summary: Permanently delete soft-deleted orders from history (teacher/admin only)
+ *     description: Deletes orders where deleteAt is not null. Pass query id to delete one soft-deleted order; omit it to delete all scoped soft-deleted orders.
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *       - in: query
+ *         name: id
+ *         required: false
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Deleted — returns confirmation message
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message: { type: string, example: Deleted }
+ *       400:
+ *         description: id must be a number
+ *       404:
+ *         description: Order not found
  */
 import { Router } from 'express';
 import { requireRole } from '../middleware/auth.middleware.js';
@@ -180,7 +209,7 @@ router.get('/order/search',             controller.searchOrder);
 router.get('/order/:id',                                  controller.openOrderBill);
 router.patch('/order/:id/edit',         controller.editOrder);
 router.get('/order/:id/export',                           controller.exportOrderBill);
-router.delete('/order/:id/delete', requireRole(1, 2), controller.deleteOrder);
-// Teacher would only see their assigned class , but requireOwnership is a guardrail just in case
+router.patch('/order/:id/delete', requireRole(1, 2), controller.softDeleteOrder);
+router.delete('/order/:id/delete_hard', requireRole(1, 2), controller.deleteOrder);
 
 export default router;

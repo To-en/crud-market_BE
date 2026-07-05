@@ -1,13 +1,17 @@
 import config from "../config.js";
 import { createClient } from "@supabase/supabase-js";
 
+// Example image url from supabase storage 
+// https://<project-ref>.supabase.co/storage/v1/object/public/<bucket>/<object_path>
 const supabase = createClient(
   config.supabase.url,
-  config.supabase.service_key,
-  
+  config.supabase.secret_key,
 );
+// Pass secret key to allow backend server to access supabase project bypassing RLS
+// Allows direct , fetch , write , read ,... 
 
 const BUCKET = config.supabase.bucket_name ?? "ingredients"; // or just default to ingredient
+
 
 /**
  * Get a public URL for an image stored in Supabase Storage.
@@ -15,8 +19,26 @@ const BUCKET = config.supabase.bucket_name ?? "ingredients"; // or just default 
  * @returns {string} Public URL
  */
 export function getImageUrl(filePath) {
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(filePath);
+  const { data, error } = supabase.storage
+    .from(BUCKET)
+    .getPublicUrl(filePath);
+  if (error) throw new Error(`Supabase public url failed: ${error.message}`);
   return data.publicUrl;
+}
+
+/**
+ * Get a short-lived signed URL for a PRIVATE bucket object.
+ * Use this instead of getImageUrl when the bucket is not public.
+ * @param {string} filePath   - Path inside the bucket, e.g. "rice.jpg"
+ * @param {number} expiresIn  - Seconds until the URL expires (default 1h)
+ * @returns {Promise<string>} Signed URL (expires) — FE must refetch when stale
+ */
+export async function getSignedUrl(filePath, expiresIn = 60 * 60) {
+  const { data, error } = await supabase.storage
+    .from(BUCKET)
+    .createSignedUrl(filePath, expiresIn);
+  if (error) throw new Error(`Supabase signed URL failed: ${error.message}`);
+  return data.signedUrl;
 }
 
 /**
