@@ -5,6 +5,7 @@ config.json
 # 2. Ignore sensitive environment variable files
 .env
 .env.local
+.env.production
 
 # 3. Ignore all files with a specific extension (using wildcards)
 *.log
