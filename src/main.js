@@ -55,7 +55,7 @@ app.use(httpLogger);   // mount before routes, after express.json()
 app.use(express.json());
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.get("/", (_req, res) => { res.send("Ingredient Market API"); });
-app.get("/health", (_req, res) => res.json({ status: "ok", ingredients: ingredients.length })); // health check should return health things
+app.get("/health", (_req, res) => res.json({ status: "ok" })); // liveness only — cheap, no DB/state
 app.get("/log", (_req,res) => { })
 app.use("/api", router); // API Endpoint routes
 app.listen(PORT, () => {

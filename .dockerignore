@@ -28,7 +28,7 @@ __pycache__/
 
 # --- Secrets and Environment Variables ---
 .env
-.env.local
+.env.*
 .env.*.local
 *.pem
 *.key
